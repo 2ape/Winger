@@ -1,0 +1,17 @@
+[
+  {
+    "id": "default-video-1",
+    "title": "Understanding the Document Object in JavaScript",
+    "description": "This video explains the document object in JavaScript, how it represents the HTML structure, and how to interact with it to manipulate elements on a web page. It covers basic concepts like accessing body and HTML elements, creating new elements, and appending them to the document.\n\nLearn more about DOM manipulation, event handling, and building interactive web applications with JavaScript. Don't forget to like, comment, and subscribe for more web development tutorials!",
+    "src": "https://v0.dev/video/video.mp4",
+    "captionsSrc": "/assets/subtitles.vtt",
+    "thumbnailUrl": "/placeholder.svg?height=360&width=640&text=Default+Video+Thumbnail",
+    "views": "1,234,567",
+    "uploadDate": "Jan 27, 2023",
+    "channelName": "Web Dev Simplified",
+    "subscriberCount": "2.1M",
+    "channelAvatarSrc": "/placeholder.svg?height=48&width=48&text=Channel+Avatar",
+    "likes": "12K",
+    "dislikes": "Dislike"
+  }
+]
