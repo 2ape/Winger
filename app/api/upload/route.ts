@@ -1,76 +1,38 @@
-import { NextRequest, NextResponse } from "next/server";
-import { insertVideo } from "@/lib/db";
+import { NextResponse } from "next/server";
+import { writeFile, mkdir } from "fs/promises";
 import path from "path";
-import { mkdir } from "fs/promises";
+import { insertVideo } from "@/lib/db"; // You must implement this function
 
-import nc from "next-connect";
-import { upload } from "@/middleware/upload";
-import type { NextApiRequest, NextApiResponse } from "next";
+export const runtime = "nodejs"; // Enable Node.js APIs for file system access
 
-// Create uploads folder if not exists
-await mkdir(path.join(process.cwd(), "uploads"), { recursive: true });
-
-export const runtime = "nodejs"; // Ensure Node.js APIs are available
-
-// Wrap multer in a Node-style handler
-const handler = nc<NextApiRequest, NextApiResponse>({
-    onError(err, req, res) {
-        res.status(500).json({ error: `Error: ${err.message}` });
-    },
-    onNoMatch(req, res) {
-        res.status(405).json({ error: "Method not allowed" });
-    },
-});
-
-handler.use(upload.single("videoFile"));
-
-handler.post(async (req, res) => {
-    const file = req.file;
-    const { title, description } = req.body;
+export async function POST(request: Request) {
+    const formData = await request.formData();
+    const file = formData.get("videoFile") as File | null;
+    const title = formData.get("title") as string | null;
+    const description = formData.get("description") as string | null;
 
     if (!file || !title) {
-        return res.status(400).json({ error: "Missing video or title" });
+        return NextResponse.json({ error: "Missing file or title" }, { status: 400 });
     }
 
+    // Ensure uploads directory exists
+    const uploadsDir = path.join(process.cwd(), "uploads");
+    await mkdir(uploadsDir, { recursive: true });
+
+    // Save file
+    const bytes = await file.arrayBuffer();
+    const buffer = Buffer.from(bytes);
+    const filename = `${Date.now()}-${file.name.replace(/\s+/g, "_")}`;
+    const filepath = path.join(uploadsDir, filename);
+    await writeFile(filepath, buffer);
+
+    // Save metadata to DB
     await insertVideo({
         title,
         description,
-        filename: file.filename,
+        filename,
         uploadedAt: new Date().toISOString(),
     });
 
-    return res.status(200).json({ success: true, filename: file.filename });
-});
-
-export async function POST(req: NextRequest) {
-    // Custom stream adapter
-    const readable = req.body as any;
-
-    const buffers = [];
-    for await (const chunk of readable) {
-        buffers.push(chunk);
-    }
-
-    const body = Buffer.concat(buffers);
-    const res = new Response();
-
-    const fakeReq = new Request(req.url, {
-        method: "POST",
-        headers: req.headers,
-        body,
-    }) as any;
-
-    return new Promise((resolve) => {
-        const fakeRes = {
-            status: (code: number) => {
-                res.status = code;
-                return fakeRes;
-            },
-            json: (data: any) => {
-                resolve(NextResponse.json(data, { status: res.status || 200 }));
-            },
-        } as any;
-
-        handler(fakeReq, fakeRes);
-    });
+    return NextResponse.json({ success: true, filename });
 }
