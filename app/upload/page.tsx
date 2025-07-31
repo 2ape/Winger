@@ -1,13 +1,11 @@
 "use client"
 
 import type React from "react"
-
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { YouTubeHeader } from "@/components/youtube-header"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Button } from "@/components/ui/button"
-import { uploadVideoAndMetadata } from "@/app/actions"
 import { Loader2Icon } from "lucide-react"
 
 export default function UploadPage() {
@@ -17,6 +15,20 @@ export default function UploadPage() {
   const [isUploading, setIsUploading] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  const titleInputRef = useRef<HTMLInputElement>(null)
+
+  const handleVideoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files ? e.target.files[0] : null
+    setVideoFile(file)
+    if (file) {
+      setTitle(file.name.replace(/\.[^/.]+$/, "")) // Remove extension
+      setTimeout(() => {
+        titleInputRef.current?.focus()
+        titleInputRef.current?.select()
+      }, 0)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
@@ -35,18 +47,25 @@ export default function UploadPage() {
     formData.append("title", title)
     formData.append("description", description)
 
-    const result = await uploadVideoAndMetadata(formData)
-
-    if (result?.error) {
-      setError(result.error)
-    } else {
-      setSuccess("Video uploaded successfully!")
-      setTitle("")
-      setDescription("")
-      setVideoFile(null)
-      // File input needs to be reset manually
-      const fileInput = document.getElementById("videoFile") as HTMLInputElement
-      if (fileInput) fileInput.value = ""
+    try {
+      const res = await fetch("/api/upload", {
+        method: "POST",
+        body: formData,
+      })
+      const result = await res.json()
+      if (!res.ok || result?.error) {
+        setError(result?.error || "Upload failed.")
+      } else {
+        setSuccess("Video uploaded successfully!")
+        setTitle("")
+        setDescription("")
+        setVideoFile(null)
+        // Reset file input
+        const fileInput = document.getElementById("videoFile") as HTMLInputElement
+        if (fileInput) fileInput.value = ""
+      }
+    } catch (err) {
+      setError("An error occurred during upload.")
     }
     setIsUploading(false)
   }
@@ -65,7 +84,7 @@ export default function UploadPage() {
               id="videoFile"
               type="file"
               accept="video/*"
-              onChange={(e) => setVideoFile(e.target.files ? e.target.files[0] : null)}
+              onChange={handleVideoChange}
               className="file:mr-4 file:py-2 file:px-4 file:rounded-md file:border-0 file:text-sm file:font-semibold file:bg-primary file:text-primary-foreground hover:file:bg-primary/90"
               required
             />
@@ -80,6 +99,8 @@ export default function UploadPage() {
               placeholder="Enter video title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
+              ref={titleInputRef}
+              className="focus:outline-none focus:ring-2 focus:ring-lime-400 focus:border-lime-400"
               required
             />
           </div>
